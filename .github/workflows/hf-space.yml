@@ -1,0 +1,33 @@
+# Every push to main reaches the Hugging Face Space, which rebuilds itself: the shared vision service
+# follows GitHub the way the backend and frontend follow it on Render.
+# Needs, in GitHub → Settings → Secrets and variables → Actions:
+#   secret   HF_TOKEN  a Hugging Face token with write access
+#   variable HF_SPACE  the Space, as user/name (for example walterjojoa/smartcattle-ia)
+name: Hugging Face Space
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: hf-space
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    if: ${{ vars.HF_SPACE != '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Publish to the Space
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HF_SPACE: ${{ vars.HF_SPACE }}
+        run: |
+          user="${HF_SPACE%%/*}"
+          git clone "https://${user}:${HF_TOKEN}@huggingface.co/spaces/${HF_SPACE}" space
+          git -C space config user.name "github-actions"
+          git -C space config user.email "github-actions@users.noreply.github.com"
+          bash scripts/publish_hf_space.sh space
+          git -C space push
