@@ -16,7 +16,7 @@ from smartcattle_ai.backend_client import (
     session_is_valid,
     session_on_this_farm,
 )
-from smartcattle_ai.farm import FarmLink, is_farm_key
+from smartcattle_ai.farm import FarmLink, is_farm_key, reports_address
 from smartcattle_ai.pushed import PUSHED_SOURCE, PushedStream
 from smartcattle_ai.camera_manager import MAX_CAMERAS, CameraManager, ManagedCamera, SharedDetector, is_public_url
 from smartcattle_ai.env import load_env_file
@@ -280,7 +280,8 @@ def main(argv=None) -> int:
     for worker in workers:
         worker.start()
     manager.restore()
-    if client is not None and is_farm_key(os.getenv("SMARTCATTLE_API_KEY")):
+    public = bool(args.tunnel or is_public_url(args.public_url))
+    if client is not None and reports_address(os.getenv("SMARTCATTLE_API_KEY"), public):
         def moved_to(new_url):
             # Every camera's link hangs from this address, and the panel reads them from their next report.
             state.public_url = new_url

@@ -18,6 +18,18 @@ def is_farm_key(key: str | None) -> bool:
     return bool(key) and key.startswith(FARM_KEY_PREFIX)
 
 
+def reports_address(key: str | None, public: bool) -> bool:
+    """Whether this service tells the backend where it can be reached.
+
+    A farm PC does, for its own account. A service run with the deployment's shared key does too once it is on the
+    internet: it is then the one every account without a PC uses, and its quick tunnel changes address on every
+    restart, so a fixed SMARTCATTLE_AI_URL in the backend could never follow it.
+    """
+    if is_farm_key(key):
+        return True
+    return bool(key) and public
+
+
 def update_env_file(path, values: dict[str, str]) -> None:
     """Sets these variables in a .env, leaving every other line as it was."""
     path = Path(path)

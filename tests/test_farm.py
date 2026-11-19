@@ -7,7 +7,7 @@ from pair_farm import main as pair_main
 from pair_farm import pair
 from smartcattle_ai.backend_client import BackendError
 from smartcattle_ai.env import load_env_file
-from smartcattle_ai.farm import FarmLink, is_farm_key, update_env_file
+from smartcattle_ai.farm import FarmLink, is_farm_key, reports_address, update_env_file
 
 
 class Tunnel:
@@ -131,3 +131,19 @@ def test_it_stops_when_asked():
     reported = []
     FarmLink(reported.append, lambda: "https://a").run(stop)
     assert reported == []
+
+
+def test_a_farm_pc_always_reports_where_it_is():
+    assert reports_address("farm-7-abc", public=True)
+    assert reports_address("farm-7-abc", public=False)
+
+
+def test_the_shared_service_reports_only_once_it_is_on_the_internet():
+    # Every account without a PC is sent to this address: a LAN one would reach nobody.
+    assert reports_address("clave-compartida", public=True)
+    assert not reports_address("clave-compartida", public=False)
+
+
+def test_without_a_key_nothing_is_reported():
+    assert not reports_address(None, public=True)
+    assert not reports_address("", public=True)
