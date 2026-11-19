@@ -16,7 +16,7 @@ from smartcattle_ai.backend_client import (
     session_is_valid,
     session_on_this_farm,
 )
-from smartcattle_ai.farm import FarmLink, is_farm_key, reports_address
+from smartcattle_ai.farm import FarmLink, default_public_url, is_farm_key, reports_address
 from smartcattle_ai.pushed import PUSHED_SOURCE, PushedStream
 from smartcattle_ai.camera_manager import MAX_CAMERAS, CameraManager, ManagedCamera, SharedDetector, is_public_url
 from smartcattle_ai.env import load_env_file
@@ -87,7 +87,7 @@ def main(argv=None) -> int:
     parser.add_argument("--origins", default=os.getenv("SMARTCATTLE_LIVE_ORIGINS") or ",".join(DEFAULT_ORIGINS),
                         help="Comma-separated frontend origins allowed to read /status")
     parser.add_argument("--public-url",
-                        default=os.getenv("SMARTCATTLE_LIVE_PUBLIC_URL") or os.getenv("RENDER_EXTERNAL_URL") or None,
+                        default=default_public_url(os.environ),
                         help="URL where browsers reach this server; reported to the backend")
     parser.add_argument("--tunnel", action="store_true", default=os.getenv("SMARTCATTLE_LIVE_TUNNEL") == "1",
                         help="Publish the video through a Cloudflare quick tunnel (anyone with the URL can watch)")

@@ -7,7 +7,7 @@ from pair_farm import main as pair_main
 from pair_farm import pair
 from smartcattle_ai.backend_client import BackendError
 from smartcattle_ai.env import load_env_file
-from smartcattle_ai.farm import FarmLink, is_farm_key, reports_address, update_env_file
+from smartcattle_ai.farm import FarmLink, default_public_url, is_farm_key, reports_address, update_env_file
 
 
 class Tunnel:
@@ -147,3 +147,18 @@ def test_the_shared_service_reports_only_once_it_is_on_the_internet():
 def test_without_a_key_nothing_is_reported():
     assert not reports_address(None, public=True)
     assert not reports_address("", public=True)
+
+
+def test_a_hugging_face_space_is_reached_at_its_own_host_over_https():
+    assert default_public_url({"SPACE_HOST": "walter-smartcattle-ia.hf.space"}) == "https://walter-smartcattle-ia.hf.space"
+
+
+def test_an_explicit_public_url_wins_over_what_the_host_says():
+    env = {"SMARTCATTLE_LIVE_PUBLIC_URL": "https://ia.example", "SPACE_HOST": "x.hf.space",
+           "RENDER_EXTERNAL_URL": "https://r.onrender.com"}
+    assert default_public_url(env) == "https://ia.example"
+    assert default_public_url({"RENDER_EXTERNAL_URL": "https://r.onrender.com"}) == "https://r.onrender.com"
+
+
+def test_on_a_pc_there_is_no_public_url_until_a_tunnel_gives_one():
+    assert default_public_url({}) is None

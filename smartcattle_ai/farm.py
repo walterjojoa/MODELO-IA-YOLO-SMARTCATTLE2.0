@@ -18,6 +18,19 @@ def is_farm_key(key: str | None) -> bool:
     return bool(key) and key.startswith(FARM_KEY_PREFIX)
 
 
+def default_public_url(env) -> str | None:
+    """Where browsers reach this service when it runs on a host that says so itself.
+
+    SMARTCATTLE_LIVE_PUBLIC_URL wins. Render gives RENDER_EXTERNAL_URL, and a Hugging Face Space gives
+    SPACE_HOST (a bare host name, always served over https).
+    """
+    explicit = env.get("SMARTCATTLE_LIVE_PUBLIC_URL") or env.get("RENDER_EXTERNAL_URL")
+    if explicit:
+        return explicit
+    space_host = (env.get("SPACE_HOST") or "").strip().strip("/")
+    return f"https://{space_host}" if space_host else None
+
+
 def reports_address(key: str | None, public: bool) -> bool:
     """Whether this service tells the backend where it can be reached.
 
