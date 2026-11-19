@@ -107,8 +107,11 @@ class CameraManager:
     to `path`; the file holds camera passwords, like .env, and stays on this PC.
     """
 
-    def __init__(self, start, stream_url, on_remove=None, path=None, max_cameras: int = MAX_CAMERAS):
+    def __init__(self, start, stream_url, on_remove=None, path=None, max_cameras: int = MAX_CAMERAS,
+                 restore_check=None):
         self._start = start
+        # Extra rule for the saved list, e.g. a cloud server must skip the LAN cameras a .cameras.json may hold.
+        self._restore_check = restore_check
         self._stream_url = stream_url
         self._on_remove = on_remove
         self._path = Path(path) if path else None
@@ -170,6 +173,14 @@ class CameraManager:
         except (OSError, ValueError, KeyError, TypeError, AttributeError) as exc:
             print(f"Warning: could not read the saved cameras: {type(exc).__name__}", file=sys.stderr)
             return
+        if self._restore_check is not None:
+            allowed = []
+            for camera_id, source in entries:
+                try:
+                    allowed.append((camera_id, self._restore_check(source)))
+                except ValueError:
+                    print(f"Warning: saved camera {camera_id} skipped: not reachable from here", file=sys.stderr)
+            entries = allowed
         with self._lock:
             for camera_id, source in entries[:self._max]:
                 self._cameras[camera_id] = self._start(camera_id, source)

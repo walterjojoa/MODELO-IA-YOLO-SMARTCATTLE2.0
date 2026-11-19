@@ -38,7 +38,8 @@ def run(monkeypatch, tmp_path):
     saved.write_text('[{"camera_id": "cam-old", "source": "rtsp://192.168.100.30/live"}]', encoding="utf-8")
     FakeDetector.loaded = False
     for name in ("SMARTCATTLE_AUTOSTART_CAMERA", "SMARTCATTLE_BACKEND_URL", "SMARTCATTLE_LIVE_TUNNEL",
-                 "SMARTCATTLE_LIVE_PUBLIC_URL", "RENDER_EXTERNAL_URL", "IMOU_APP_ID"):
+                 "SMARTCATTLE_LIVE_PUBLIC_URL", "RENDER_EXTERNAL_URL", "SMARTCATTLE_CLOUD",
+                 "IMOU_APP_ID", "IMOU_APP_SECRET", "IMOU_DEVICE_ID", "IMOU_PROFILE"):
         monkeypatch.delenv(name, raising=False)
     monkeypatch.setenv("CAMERA_URL", "rtsp://192.168.100.30/live")
     monkeypatch.setenv("SMARTCATTLE_CAMERAS_FILE", str(saved))
@@ -80,3 +81,30 @@ def test_a_url_on_the_command_line_is_still_opened(run):
 def test_the_settings_camera_opens_only_when_asked_for(run):
     _, opened = run("--auto-camera")
     assert "rtsp://192.168.100.30/live" in opened
+
+
+def test_in_the_cloud_the_settings_camera_is_the_imou_cloud_never_the_lan_one(run, monkeypatch):
+    monkeypatch.setenv("SMARTCATTLE_CLOUD", "1")
+    monkeypatch.setenv("IMOU_APP_ID", "app")
+    monkeypatch.setenv("IMOU_APP_SECRET", "secret")
+    monkeypatch.setenv("IMOU_DEVICE_ID", "device-1")
+    monkeypatch.setenv("IMOU_PROFILE", "SD")
+    code, opened = run("--auto-camera")
+    assert code == 0
+    assert [str(source) for source in opened] == ["Imou cloud device device-1 (SD)"]
+
+
+def test_in_the_cloud_without_imou_settings_it_refuses_to_start_instead_of_trying_rtsp(run, monkeypatch, capsys):
+    monkeypatch.setenv("SMARTCATTLE_CLOUD", "1")
+    code, opened = run("--auto-camera")
+    assert code == 1
+    assert opened == []
+    assert "IMOU_APP_ID" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("url", ["1", "192.168.168.190:554", "rtsp://admin:x@192.168.1.20/live"])
+def test_in_the_cloud_a_local_camera_on_the_command_line_is_refused(run, monkeypatch, url):
+    monkeypatch.setenv("SMARTCATTLE_CLOUD", "1")
+    code, opened = run("--url", url)
+    assert code == 1
+    assert opened == []

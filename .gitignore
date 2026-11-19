@@ -13,6 +13,9 @@ outputs/*.mp4
 venv/
 .uv-cache/
 .env
+# Local copies of .env hold the same secrets.
+.env.*
+!.env.example
 # Cameras added from the dashboard, with their passwords.
 .cameras.json
 .cameras.json.tmp

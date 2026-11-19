@@ -18,7 +18,9 @@ from smartcattle_ai.backend_client import (
 )
 from smartcattle_ai.farm import FarmLink, default_public_url, is_farm_key, reports_address
 from smartcattle_ai.pushed import PUSHED_SOURCE, PushedStream
-from smartcattle_ai.camera_manager import MAX_CAMERAS, CameraManager, ManagedCamera, SharedDetector, is_public_url
+from smartcattle_ai.camera_manager import (
+    MAX_CAMERAS, CameraManager, ManagedCamera, SharedDetector, check_reachable_from_cloud, is_public_url,
+)
 from smartcattle_ai.env import load_env_file
 from smartcattle_ai.imou import imou_configured, imou_url_provider
 from smartcattle_ai.discovery import local_ipv4
@@ -46,6 +48,28 @@ def max_added_cameras(env) -> int:
     """How many cameras the dashboard may add. A server's memory and CPU say how many it can really analyse."""
     value = env.get("SMARTCATTLE_MAX_CAMERAS", "")
     return int(value) if value.isdigit() else MAX_CAMERAS
+
+
+def cloud_restore_check(source: str) -> str:
+    """A phone that sends its own pictures works anywhere; any other saved camera needs an internet address."""
+    return source if source == PUSHED_SOURCE else check_reachable_from_cloud(source)
+
+
+def startup_source(url_arg, auto_camera: bool, env):
+    """The camera opened at start, if any.
+
+    A cloud server (SMARTCATTLE_CLOUD=1) is on no farm's network, so its settings camera is always the Imou
+    cloud: a leftover CAMERA_* or webcam setting must fail loudly instead of pointing it at a private address.
+    """
+    cloud = env.get("SMARTCATTLE_CLOUD") == "1"
+    if url_arg:
+        source = normalize_source(url_arg)
+        return check_reachable_from_cloud(source) if cloud else source
+    if not auto_camera:
+        return None
+    if cloud or imou_configured(env):
+        return imou_url_provider(env)
+    return camera_url_from_env(env)
 
 
 def main(argv=None) -> int:
@@ -95,8 +119,7 @@ def main(argv=None) -> int:
 
     try:
         # Nothing opens by itself: a .env copied from another PC must not point this one at somebody else's camera.
-        url = normalize_source(args.url) if args.url else (
-            (imou_url_provider() if imou_configured() else camera_url_from_env()) if args.auto_camera else None)
+        url = startup_source(args.url, args.auto_camera, os.environ)
         zone = ZoneSet.from_rectangle(parse_zone(args.zone))
         if not CAMERA_ID.fullmatch(args.camera_id):
             # The backend's rule for camera ids; anything else would be a 422 on every report.
@@ -226,7 +249,8 @@ def main(argv=None) -> int:
     # The list holds camera passwords and only serves to reconnect by itself, so it is kept only when asked for that.
     manager = CameraManager(start_added_camera, added_stream_url, on_remove=on_camera_removed,
                             path=(os.getenv("SMARTCATTLE_CAMERAS_FILE") or ".cameras.json") if args.auto_camera else None,
-                            max_cameras=max_added_cameras(os.environ))
+                            max_cameras=max_added_cameras(os.environ),
+                            restore_check=cloud_restore_check if os.getenv("SMARTCATTLE_CLOUD") == "1" else None)
     origins = [origin.strip() for origin in args.origins.split(",") if origin.strip()]
     # Listening on every interface is how other devices get here, so their browsers must be let in too,
     # and they must be told this PC's address: "localhost" would mean their own device.

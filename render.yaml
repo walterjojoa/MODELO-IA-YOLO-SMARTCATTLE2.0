@@ -1,28 +1,46 @@
-# Render Blueprint: live.py as a Docker web service for every account: phones and webcams send it their pictures,
-# and it can open cameras with a public address.
+# Render Blueprint: live.py as a Docker web service that watches the farm's Imou camera through the Imou cloud,
+# so the video works with no PC turned on. Phones and webcams can still send it their pictures.
 services:
   - type: web
     name: smartcattle-live
     runtime: docker
     # Free instances sleep after 15 min without visitors and have 0.1 CPU; the detector needs to stay awake.
     # 2 GB and 1 CPU: the model alone took about 360 MB, and each camera adds its own frames and threads.
+    # Starter (512 MB, 0.5 CPU) is the smallest paid plan; with YOLO on CPU it runs out of memory or falls behind.
     plan: standard
     # A commit whose tests fail never reaches the running service.
     autoDeployTrigger: checksPass
     healthCheckPath: /health
     envVars:
-      # Shared by everyone's cameras. They take turns in the detector, so more of them only lowers the frame rate.
-      - key: SMARTCATTLE_MAX_CAMERAS
-        value: "8"
-      - key: SMARTCATTLE_BACKEND_URL
-        value: https://smartcattle-backend.onrender.com
-      - key: SMARTCATTLE_API_KEY
-        sync: false
-      - key: SMARTCATTLE_LIVE_ORIGINS
-        value: https://smartcattle-frontend.onrender.com
-      # Not on any farm's network: private addresses and webcam numbers get a clear message.
+      # Not on any farm's network: the settings camera is always the Imou cloud, never RTSP or a webcam.
       - key: SMARTCATTLE_CLOUD
+        value: "1"
+      # Open the Imou camera at start instead of waiting for someone to add one from the dashboard.
+      - key: SMARTCATTLE_AUTOSTART_CAMERA
         value: "1"
       # Smaller input keeps CPU inference near real time on a shared instance.
       - key: SMARTCATTLE_IMGSZ
         value: "416"
+      # Shared by everyone's cameras. They take turns in the detector, so more of them only lowers the frame rate.
+      - key: SMARTCATTLE_MAX_CAMERAS
+        value: "8"
+      # Set by hand in the dashboard: the deployed backend's address, e.g. https://<backend>.onrender.com
+      - key: SMARTCATTLE_BACKEND_URL
+        sync: false
+      # Set by hand: the deployed frontend's address(es), comma-separated, without a trailing slash.
+      - key: SMARTCATTLE_LIVE_ORIGINS
+        sync: false
+      # Secret. The backend's AI_API_KEY (shared service) or a farm key from pair_farm.py (one farm's service).
+      - key: SMARTCATTLE_API_KEY
+        sync: false
+      # Imou Open Platform (open.imoulife.com). SD is lighter on bandwidth and CPU than HD.
+      - key: IMOU_PROFILE
+        value: SD
+      - key: IMOU_APP_ID
+        sync: false
+      # Secret.
+      - key: IMOU_APP_SECRET
+        sync: false
+      # The camera's serial number as shown in Imou Life / the Imou Open Platform device list.
+      - key: IMOU_DEVICE_ID
+        sync: false
